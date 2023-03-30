@@ -1,0 +1,4 @@
+.env
+venv/
+preffix.txt
+suffix.txt
