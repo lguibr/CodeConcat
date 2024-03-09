@@ -35,7 +35,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "requests",
-        "magic",
+        "python-magic",
     ],
     entry_points={
         "console_scripts": [
