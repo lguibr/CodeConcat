@@ -1,5 +1,25 @@
-.env
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
 venv/
-preffix.txt
-suffix.txt
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# Miscellaneous
+*.log
+*.swp
+*.swo
+*.bak
 *.txt
