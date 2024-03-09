@@ -35,6 +35,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "requests",
+        "setuptools",
     ],
     entry_points={
         "console_scripts": [
