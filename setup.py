@@ -5,9 +5,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="codeconcat",
-    version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    version="0.1.1",
+    author="Luis Guilherme",
+    author_email="lgpelin92@gmail.com",
     description="A tool to concatenate a codebase from a GitHub repository into a single text file",
     long_description=long_description,
     long_description_content_type="text/markdown",
