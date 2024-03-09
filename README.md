@@ -1,5 +1,10 @@
 # CodeConcat
 
+[![CI](https://github.com/lguibr/codeconcat/workflows/CI/badge.svg)](https://github.com/lguibr/codeconcat/actions)
+[![PyPI](https://img.shields.io/pypi/v/codeconcat.svg)](https://pypi.org/project/codeconcat/)
+[![Python Version](https://img.shields.io/pypi/pyversions/codeconcat.svg)](https://pypi.org/project/codeconcat/)
+[![License](https://img.shields.io/pypi/l/codeconcat.svg)](https://github.com/lguibr/codeconcat/blob/main/LICENSE)
+
 CodeConcat is a command-line interface (CLI) tool that enables developers to quickly and easily concatenate an entire local code repository into a single text file. This bundled file includes a directory tree, file paths, and file content, making it an excellent resource for code review, documentation, or sharing with others.
 
 ## Features
