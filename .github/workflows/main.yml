@@ -1,32 +1,91 @@
-name: codeconcatci
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  publish:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
-
+      - uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: 3.x
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+      - name: Lint with flake8
+        run: |
+          flake8 .
 
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy
+          pip install -r requirements.txt\
+      - name: Type check with mypy
+        run: |
+          mypy .
+
+  bump-version:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Bump version
+        id: bump_version
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          current_version=$(grep -oP 'version="\K[^"]+' setup.py)
+          major=$(echo $current_version | cut -d '.' -f 1)
+          minor=$(echo $current_version | cut -d '.' -f 2)
+          patch=$(echo $current_version | cut -d '.' -f 3)
+          new_version="$major.$minor.$((patch + 1))"
+          sed -i "s/version=\"$current_version\"/version=\"$new_version\"/g" setup.py
+          git add setup.py
+          git commit -m "Bump version to $new_version"
+          git push
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+    outputs:
+      new_version: ${{ steps.bump_version.outputs.new_version }}
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [bump-version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install setuptools wheel twine
-
       - name: Build package
         run: python setup.py sdist bdist_wheel
-
-      - name: Publish package
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: lgpelin92
+          user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
