@@ -11,8 +11,8 @@ setup(
     description="A tool to concatenate a codebase from a GitHub repository into a single text file",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-username/CodeConcat",
     packages=find_packages(),
+    url="https://github.com/your-username/CodeConcat",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
