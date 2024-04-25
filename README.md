@@ -5,62 +5,62 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/codeconcat.svg)](https://pypi.org/project/codeconcat/)
 [![License](https://img.shields.io/pypi/l/codeconcat.svg)](https://github.com/lguibr/codeconcat/blob/main/LICENSE)
 
-CodeConcat is a command-line interface (CLI) tool that enables developers to quickly and easily concatenate an entire local code repository into a single text file. This bundled file includes a directory tree, file paths, and file content, making it an excellent resource for code review, documentation, or sharing with others.
+**CodeConcat** is a powerful command-line tool designed to simplify the process of concatenating the entire contents of local directories or code repositories into a single text file. This tool is particularly useful for developers who need to prepare large datasets for analysis or training in machine learning models, especially those that benefit from understanding the broader context provided by having complete codebases in a single file.
 
-## Features
+## Key Features
 
-- Process code from any local repository
-- Generate a directory tree for the entire codebase
-- Include file paths and file content in the output
-- Produce a human-readable text file
-- Customize the output file path and name
-- Exclude specific files or directories using patterns
-- Include only specific files or directories using whitelist patterns
+- **Efficiency**: Quickly concatenate entire directories or repositories.
+- **Flexibility**: Use include and exclude patterns to control exactly what gets included in the output.
+- **Clarity**: Each file's path is included in the output, maintaining the context necessary for large language models.
+- **Simplicity**: A straightforward command-line interface that integrates easily into any developer's workflow.
 
 ## Installation
 
-To install CodeConcat, you can use pip:
+You can install CodeConcat directly from PyPI:
 
 ```bash
-
 pip install codeconcat
 ```
 
-## Usage
+## How to Use
 
-To use CodeConcat, run the following command with the required arguments:
-
-```bash
-
-codeconcat <repo_path> <output_path> [--exclude <pattern>] [--whitelist <pattern>]
-```
-
-## Arguments
-
-<repo_path>: The path to the local repository you want to process.
-<output_path>: The path to the output file where the concatenated codebase will be saved.
---exclude <pattern> (optional): Exclude files or directories matching the given pattern.
---whitelist <pattern> (optional): Include only files or directories matching the given pattern.
-
-## Example
-
-Suppose you want to concatenate the codebase from the ~/projects/my-repo directory and save it in a file called output.txt in the current directory. The command would look like this:
+### Basic Command Structure
 
 ```bash
-codeconcat ~/projects/my-repo output.txt
-
+codeconcat <source_path> <destination_file> [--exclude <pattern>] [--whitelist <pattern>]
 ```
 
-If you want to exclude certain files or directories, you can use the --exclude option:
+### Parameters
+
+- `<source_path>`: Path to the directory or repository to process.
+- `<destination_file>`: Path where the concatenated output will be saved.
+- `--exclude <pattern>`: (Optional) Exclude files matching this pattern.
+- `--whitelist <pattern>`: (Optional) Only include files matching this pattern.
+
+### Examples
+
+**Basic Concatenation:**
 
 ```bash
-codeconcat ~/projects/my-repo output.txt --exclude "tests/\*"
-
+codeconcat ./my-repo output.txt
 ```
 
-To include only specific files or directories, you can use the --whitelist option:
+**Using Exclude Patterns:**
 
 ```bash
-
-codeconcat ~/projects/my-repo output.txt --whitelist "src/\*"
+codeconcat ./my-repo output.txt --exclude "*.log"
 ```
+
+**Using Whitelist Patterns:**
+
+```bash
+codeconcat ./my-repo output.txt --whitelist "*.py"
+```
+
+## Contributing
+
+Contributions to CodeConcat are welcome! Please check out the [issues on GitHub](https://github.com/lguibr/codeconcat/issues) or submit a pull request if you have an improvement or bug fix.
+
+## License
+
+CodeConcat is distributed under the MIT license. See the [LICENSE](LICENSE) file for more details.
