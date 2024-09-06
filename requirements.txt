@@ -1,3 +1,4 @@
 setuptools
 python-magic
 types-setuptools
+libmagic
