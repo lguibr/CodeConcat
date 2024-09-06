@@ -8,7 +8,7 @@ url = "https://github.com/lguibr/CodeConcat"
 
 setup(
     name="codeconcat",
-    version="0.1.6",
+    version="0.1.7",
     author="Luis Guilherme",
     author_email="lgpelin92@gmail.com",
     description="A tool to concatenate a folders into a single text file",
