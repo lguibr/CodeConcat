@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codeconcat"
-version = "2.2.1" # Assuming this is your intended version
+version = "2.2.2" # Assuming this is your intended version
 authors = [
-  { name="Luis Guilherme", email="lgpelin92@gmail.com" },
+    { name="Luis Guilherme", email="lgpelin92@gmail.com" },
 ]
 description = "A tool to concatenate folders into a single text file, respecting .gitignore and using optional config."
 readme = "README.md"
