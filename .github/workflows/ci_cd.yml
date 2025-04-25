@@ -7,12 +7,12 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build: # You can rename this job if you like, e.g., 'test' or 'checks'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # Keep running other matrix jobs even if one fails
       matrix:
-        python-version: ["3.10", "3.11"] # Add other versions you support
+        python-version: ["3.10", "3.11"] # Add/remove versions as needed
 
     steps:
     - name: Check out code
@@ -22,28 +22,27 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip' # Cache pip dependencies
+        cache: 'pip' # Enable caching for pip dependencies to speed up runs
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install the package itself and all dependencies defined
-        # in [project.optional-dependencies.test] in pyproject.toml
-        # Ensure mypy, types-setuptools, pytest (if used) are listed there.
+        # This command installs the 'codeconcat' package itself
+        # plus all packages listed under [project.optional-dependencies.test]
+        # in your pyproject.toml file (e.g., ruff, mypy, pytest).
         pip install .[test]
 
     - name: Lint and Format Check with Ruff
       run: |
-        # Check formatting (without changing files)
+        # Check if code is formatted according to Ruff rules (like black)
         ruff format --check .
-        # Check linting rules
+        # Check for code style issues, import errors, etc. (like flake8, isort)
         ruff check .
 
     - name: Analyse code with Mypy
-      # This step will now find the 'mypy' command because it was installed
-      # in the 'Install dependencies' step via the [test] extras.
       run: |
-        mypy codeconcat tests # Adjust paths if your structure is different
+        # Ensure mypy runs on your source code and test directories
+        mypy codeconcat tests # Adjust these paths if your structure differs
 
     - name: Run tests with Pytest
       run: |
