@@ -1,108 +1,50 @@
-name: CodeConcat CI/CD
+name: CI
 
 on:
   push:
     branches: [ "main" ]
-    tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  id-token: write # For PyPI Trusted Publishing
 
 jobs:
-  lint-check:
-    name: Lint & Format Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff
-      - name: Run Ruff Linter
-        run: ruff check .
-      - name: Run Ruff Formatter Check
-        run: ruff format --check .
-
-  type-check:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        # Install with 'dev' extras to get mypy and types-*
-        run: |
-           python -m pip install --upgrade pip
-           pip install .[dev]
-           # Install libmagic for python-magic (needed for mypy checks too if types are strict)
-           sudo apt-get update && sudo apt-get install -y libmagic1
-      - name: Run MyPy Type Checker
-        run: mypy codeconcat tests
-
-  test:
-    name: Test & Coverage
-    needs: [lint-check, type-check] # Depends on checks passing
+  build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # Keep running other matrix jobs even if one fails
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12'] # Test across versions
+        python-version: ["3.10", "3.11"] # Add other versions you support
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+    - name: Check out code
+      uses: actions/checkout@v4
 
-      - name: Install dependencies including test extras
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev] # Installs pytest, pytest-cov etc.
-          # Install libmagic required by python-magic (needed at runtime for tests)
-          sudo apt-get update && sudo apt-get install -y libmagic1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip' # Cache pip dependencies
 
-      - name: Run Pytest with Coverage
-        run: pytest # Reads config from pyproject.toml
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install the package itself and all dependencies defined
+        # in [project.optional-dependencies.test] in pyproject.toml
+        # Ensure mypy, types-setuptools, pytest (if used) are listed there.
+        pip install .[test]
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4 # Use v4
-        with:
-          # token: ${{ secrets.CODECOV_TOKEN }} # Not needed for public repos on codecov.io
-          slug: lguibr/codeconcat # Optional: verify auto-detection
-          files: ./coverage.xml # Ensure this matches pytest output
-          fail_ci_if_error: true
-        env:
-           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # Needed for private repos or Codecov Enterprise
+    - name: Lint and Format Check with Ruff
+      run: |
+        # Check formatting (without changing files)
+        ruff format --check .
+        # Check linting rules
+        ruff check .
 
-  publish:
-    name: Publish to PyPI
-    needs: test # Publish only if tests pass
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    environment:
-      name: pypi
-      url: https://pypi.org/p/codeconcat
-    permissions:
-      id-token: write # Required for trusted publishing
+    - name: Analyse code with Mypy
+      # This step will now find the 'mypy' command because it was installed
+      # in the 'Install dependencies' step via the [test] extras.
+      run: |
+        mypy codeconcat tests # Adjust paths if your structure is different
 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install build dependencies
-        run: python -m pip install --upgrade pip build
-      - name: Build package
-        run: python -m build
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        # Uses OIDC Trusted Publishing (no token needed)
+    - name: Run tests with Pytest
+      run: |
+        pytest

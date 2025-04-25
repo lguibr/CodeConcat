@@ -84,3 +84,11 @@ select = ["E", "W", "F", "I"]
 # warn_return_any = true
 # warn_unused_configs = true
 # Add other mypy options as needed
+
+[project.optional-dependencies]
+test = [
+    "mypy>=1.0",
+    "types-setuptools",
+    "pytest>=7.0", # Add if you use pytest
+    # Add other test/dev dependencies here
+]
