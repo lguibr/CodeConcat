@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# codeconcat/file_utils.py
+# File: codeconcat/file_utils.py
 import logging
 import os
 import re
@@ -10,10 +10,10 @@ import magic
 import pathspec  # For .gitignore parsing
 
 logger = logging.getLogger(__name__)
-
 # Keep these constants or move them to config if they should be configurable
 EXCLUDED_MIME_TYPES = ("application", "image", "audio", "video")
 # This list becomes less important if whitelist is used effectively, but good fallback
+# (Keep your existing LANGUAGE_EXTENSIONS list here)
 LANGUAGE_EXTENSIONS = (
     ".py",
     ".js",
@@ -80,6 +80,7 @@ LANGUAGE_EXTENSIONS = (
 )
 
 
+# Need to re-add the load_gitignore_patterns function definition
 def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
     """Loads .gitignore patterns starting from a path and walking upwards."""
     patterns = []
@@ -90,13 +91,16 @@ def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
         if gitignore_file.is_file():
             try:
                 with open(gitignore_file, "r", encoding="utf-8") as f:
-                    # We need patterns relative to the root where os.walk starts.
-                    # pathspec works best with paths relative to .gitignore location.
-                    # This requires careful handling during the walk.
-                    # For simplicity here, let's collect raw lines first.
-                    f.seek(0)  # Reset file pointer
-                    patterns.extend(f.read().splitlines())
-                logger.info(f"Loaded patterns from {gitignore_file}")
+                    lines = f.read().splitlines()
+                    # Filter out empty lines and comments
+                    valid_patterns = [
+                        line for line in lines if line.strip() and not line.strip().startswith("#")
+                    ]
+                    if valid_patterns:
+                        patterns.extend(valid_patterns)
+                        logger.debug(
+                            f"Loaded {len(valid_patterns)} patterns from {gitignore_file}"
+                        )  # Use debug
             except OSError as e:
                 logger.warning(f"Could not read {gitignore_file}. Error: {e}")
 
@@ -106,10 +110,14 @@ def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
         current_path = parent
 
     if patterns:
-        # Create a single PathSpec from all collected patterns
-        # Note: This simple combination might not perfectly replicate
-        # git's precedence rules, but it's a good approximation.
-        return pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, patterns)
+        try:
+            # Create a single PathSpec from all collected patterns
+            spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, patterns)
+            logger.debug(f"Compiled PathSpec from {len(patterns)} total gitignore patterns.")
+            return spec
+        except Exception as e:
+            logger.error(f"Failed to compile gitignore patterns: {e}")
+            return None
     return None
 
 
@@ -122,92 +130,139 @@ def generate_directory_tree(
     """
     Generates a list of file paths to include, applying filters.
     Order of operations:
-    1. Check explicit exclude patterns.
-    2. Check .gitignore patterns (if enabled).
-    3. Check whitelist patterns (if provided).
+    1. Check explicit exclude patterns (using relative paths).
+    2. Check .gitignore patterns (if enabled, using relative paths).
+    3. Check whitelist patterns (if provided, using relative paths).
     4. Check default MIME type / extension (if no whitelist).
     """
     tree: List[str] = []
     src_path = Path(src_path_str).resolve()
     gitignore_spec = load_gitignore_patterns(src_path) if use_gitignore else None
 
-    # Compile regex patterns once
-    compiled_exclude = [re.compile(p) for p in exclude_patterns]
-    compiled_whitelist = [re.compile(p) for p in whitelist_patterns]
+    # Compile regex patterns, skip empty strings
+    compiled_exclude = [re.compile(p) for p in exclude_patterns if p]
+    compiled_whitelist = [re.compile(p) for p in whitelist_patterns if p]
 
-    for root, dirs, files in os.walk(src_path_str, topdown=True):
+    logger.debug(f"Source Path Resolved: {src_path}")
+    logger.debug(f"Compiled Excludes: {[p.pattern for p in compiled_exclude]}")
+    logger.debug(f"Compiled Whitelists: {[p.pattern for p in compiled_whitelist]}")
+    logger.debug(f"Gitignore Spec Loaded: {gitignore_spec is not None}")
+
+    for root, dirs, files in os.walk(str(src_path), topdown=True):  # Ensure os.walk gets a string
         current_path = Path(root).resolve()
 
         # --- Filter Directories ---
         original_dirs = list(dirs)
-        dirs[:] = []
+        dirs[:] = []  # Modify dirs in place
         for d in original_dirs:
             dir_path_obj = current_path / d
-            dir_path_rel = dir_path_obj.relative_to(src_path)
-            dir_path_str = str(dir_path_obj)
-
-            if any(p.search(dir_path_str) for p in compiled_exclude):
-                # logger.debug(f"Excluding dir by exclude: {dir_path_rel}")
+            try:
+                # Use relative path for pattern matching and gitignore
+                dir_path_rel = dir_path_obj.relative_to(src_path)
+                dir_path_rel_str = str(dir_path_rel)
+            except ValueError:
+                logger.warning(f"Could not get relative path for dir {dir_path_obj}, skipping checks.")
+                dirs.append(d)  # Keep dir if relative path fails? Or skip? Skipping is safer.
                 continue
 
-            # Add trailing slash for dirs when checking gitignore
-            if use_gitignore and gitignore_spec and gitignore_spec.match_file(str(dir_path_rel) + "/"):
-                # logger.debug(f"Excluding dir by gitignore: {dir_path_rel}")
+            # Check compiled exclude patterns against RELATIVE path string
+            if compiled_exclude and any(p.search(dir_path_rel_str) for p in compiled_exclude):
+                logger.debug(f"Excluding dir by exclude pattern: {dir_path_rel_str}")
                 continue
 
-            dirs.append(d)
+            # Check gitignore patterns (needs trailing slash for directories)
+            if (
+                use_gitignore
+                and gitignore_spec
+                and gitignore_spec.match_file(dir_path_rel_str + "/")  # Add trailing slash for dir match
+            ):
+                logger.debug(f"Excluding dir by gitignore: {dir_path_rel_str}")
+                continue
+
+            dirs.append(d)  # Keep the directory if not excluded
 
         # --- Filter Files ---
         for file in files:
             file_path_obj = current_path / file
-            file_path_str = str(file_path_obj)
-            relative_file_path = file_path_obj.relative_to(src_path)
-
-            # 1. Check explicit exclude patterns
-            if any(p.search(file_path_str) for p in compiled_exclude):
-                # logger.debug(f"Excluding file by exclude: {relative_file_path}")
+            try:
+                # Use relative path for pattern matching and gitignore
+                relative_file_path = file_path_obj.relative_to(src_path)
+                relative_file_path_str = str(relative_file_path)
+                # Keep absolute path only needed for magic
+                file_path_abs_str = str(file_path_obj.resolve())
+            except ValueError:
+                logger.warning(f"Could not get relative path for file {file_path_obj}, skipping checks.")
                 continue
 
-            # 2. Check .gitignore patterns (if enabled)
-            if use_gitignore and gitignore_spec and gitignore_spec.match_file(str(relative_file_path)):
-                # logger.debug(f"Excluding file by gitignore: {relative_file_path}")
+            # 1. Check explicit exclude patterns against RELATIVE path string
+            if compiled_exclude and any(p.search(relative_file_path_str) for p in compiled_exclude):
+                logger.debug(f"Excluding file by exclude pattern: {relative_file_path_str}")
                 continue
 
-            # 3. Check whitelist patterns (if provided)
+            # 2. Check .gitignore patterns
+            if use_gitignore and gitignore_spec and gitignore_spec.match_file(relative_file_path_str):
+                logger.debug(f"Excluding file by gitignore: {relative_file_path_str}")
+                continue
+
+            # 3. Check whitelist patterns against RELATIVE path string
             is_whitelisted = False
             if compiled_whitelist:
-                if any(p.search(file_path_str) for p in compiled_whitelist):
+                if any(p.search(relative_file_path_str) for p in compiled_whitelist):
                     is_whitelisted = True
                 else:
-                    # logger.debug(f"Skipping file not in whitelist: {relative_file_path}") # Shortened
+                    logger.debug(f"Skipping file not in whitelist: {relative_file_path_str}")
                     continue
+
+            # If whitelisted, add and continue (don't check default rules)
             if is_whitelisted:
-                tree.append(file_path_str)
-                # logger.debug(f"Including whitelisted file: {relative_file_path}")
+                tree.append(file_path_abs_str)  # Store absolute path for reading later
+                logger.debug(f"Including whitelisted file: {relative_file_path_str}")
                 continue
 
-            # 4. Default Inclusion (No whitelist provided, rely on MIME/Extension)
+            # 4. Default Inclusion (Only if NO whitelist was provided)
             if not compiled_whitelist:
                 try:
-                    mime_type = magic.from_file(file_path_str, mime=True)
+                    # Magic needs the absolute path
+                    mime_type = magic.from_file(file_path_abs_str, mime=True)
                     is_excluded_mime = any(excluded in mime_type for excluded in EXCLUDED_MIME_TYPES)
-                    is_language_file = file.lower().endswith(LANGUAGE_EXTENSIONS) or file == "LICENSE"
+                    # Check extension on the filename itself
+                    file_name = file_path_obj.name
+                    is_language_file = (
+                        file_name.lower().endswith(LANGUAGE_EXTENSIONS) or file_name == "LICENSE"
+                    )
 
                     if not is_excluded_mime or is_language_file:
-                        tree.append(file_path_str)
-                        # logger.debug(f"Including file by default: {relative_file_path}") # Shortened
-                    # else:
-                    # logger.debug(f"Skipping file by default (MIME): {relative_file_path}") # Shortened
+                        tree.append(file_path_abs_str)  # Store absolute path for reading later
+                        logger.debug(f"Including file by default rules: {relative_file_path_str}")
 
                 except magic.MagicException as e:
-                    logger.warning(f"Skipping file {file_path_str} - magic error: {e}")
+                    # Check if libmagic is missing
+                    if "failed to find magic" in str(e).lower():
+                        logger.warning(f"libmagic not found. Relying on file extensions only. Error: {e}")
+                        # Fallback to extension check if magic fails critically
+                        file_name = file_path_obj.name
+                        is_language_file = (
+                            file_name.lower().endswith(LANGUAGE_EXTENSIONS) or file_name == "LICENSE"
+                        )
+                        if is_language_file:
+                            tree.append(file_path_abs_str)
+                            logger.debug(f"Including file by extension fallback: {relative_file_path_str}")
+                        else:
+                            logger.debug(f"Skipping file by extension fallback: {relative_file_path_str}")
+
+                    else:
+                        logger.warning(f"Skipping file {relative_file_path_str} - magic error: {e}")
                 except FileNotFoundError:
-                    logger.warning(f"Skipping file {file_path_str} - Not found during processing.")
+                    # This might happen in race conditions, log and continue
+                    logger.warning(f"Skipping file {relative_file_path_str} - Not found during processing.")
                 except Exception as e:
-                    logger.warning(f"Skipping file {file_path_str} - Unexpected error: {e}")
+                    # Catch other potential errors during file processing
+                    logger.warning(f"Skipping file {relative_file_path_str} - Unexpected error: {e}")
 
     logger.info(f"Found {len(tree)} files matching criteria.")
     if not tree:
         logger.warning("No files found matching the criteria. No output generated.")
 
+    # Sort the tree for consistent output order (optional, but nice)
+    tree.sort()
     return tree
