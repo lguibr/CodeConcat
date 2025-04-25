@@ -20,8 +20,7 @@ def parse_arguments() -> argparse.Namespace:
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "Concatenate files from a directory into a single output, "
-            "respecting .gitignore and config files."
+            "Concatenate files from a directory into a single output, respecting .gitignore and config files."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,  # Show defaults
     )
