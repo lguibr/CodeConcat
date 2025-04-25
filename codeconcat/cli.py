@@ -53,9 +53,7 @@ parser.add_argument(
     default=False,
     help="Disable processing of .gitignore files.",
 )
-parser.add_argument(
-    "-v", "--verbose", action="store_true", help="Enable verbose logging (DEBUG level)."
-)
+parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging (DEBUG level).")
 
 
 def parse_arguments(args: Optional[List[str]] = None) -> argparse.Namespace:

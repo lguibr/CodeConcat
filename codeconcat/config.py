@@ -3,178 +3,79 @@
 import json
 import logging
 from pathlib import Path
-
-# Use typing.Tuple for broader compatibility if MyPy struggles with tuple[]
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# --- Constants ---
+HOME_CONFIG_PATH = Path.home() / ".codeconcat_config.json"
+PROJECT_CONFIG_PATH = Path(".") / ".codeconcat_config.json"
 
-CONFIG_FILE_NAME = ".codeconcat_config.json"
-GITIGNORE_FILE_NAME = ".gitignore"
-
-# Heuristic: MIME types that are likely binary or not useful text content
-# Use typing.Tuple explicitly
-EXCLUDED_MIME_PREFIXES: Tuple[str, ...] = ("application/", "image/", "audio/", "video/")
-
-# Common text/code file extensions (Set for faster lookups)
-DEFAULT_WHITELIST_EXTENSIONS: Set[str] = {
-    # Code
-    ".py",
-    ".pyw",
-    ".pyi",
-    ".js",
-    ".mjs",
-    ".cjs",
-    ".ts",
-    ".tsx",
-    ".java",
-    ".c",
-    ".h",
-    ".cpp",
-    ".hpp",
-    ".cs",
-    ".rb",
-    ".php",
-    ".swift",
-    ".go",
-    ".rs",
-    ".kt",
-    ".kts",
-    ".scala",
-    ".pl",
-    ".pm",
-    ".sh",
-    ".bash",
-    ".zsh",
-    ".ps1",
-    ".lua",
-    ".sql",
-    ".r",
-    ".dart",
-    ".groovy",
-    ".hs",
-    ".lhs",
-    ".ml",
-    ".mli",
-    ".fs",
-    ".fsx",
-    ".fsi",
-    ".elm",
-    ".clj",
-    ".cljs",
-    ".edn",
-    ".ex",
-    ".exs",
-    ".erl",
-    ".hrl",
-    ".vim",
-    ".el",
-    # Markup & Config
-    ".html",
-    ".htm",
-    ".css",
-    ".scss",
-    ".sass",
-    ".less",
-    ".xml",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".ini",
-    ".cfg",
-    ".conf",
-    ".properties",
-    ".md",
-    ".markdown",
-    ".rst",
-    ".adoc",
-    ".asciidoc",
-    ".tex",
-    ".bib",
-    ".csv",
-    ".tsv",
-    ".log",
-    ".txt",
-    ".env",
-    ".dockerfile",
-    "dockerfile",
-    ".gitignore",
-    ".gitattributes",
-    ".editorconfig",
-    # Other potentially useful text
-    ".nfo",
-    ".readme",
-    ".inf",
-    ".url",
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "use_gitignore": True,
+    "exclude_patterns": [],
+    "whitelist_patterns": [],
+    # Add other future config options here with defaults
 }
 
-# Default patterns to exclude (common build artifacts, caches, envs, etc.)
-DEFAULT_EXCLUDE_PATTERNS: List[str] = [
-    ".*",
-    "__pycache__",
-    "*.pyc",
-    "*.pyo",
-    "*.pyd",
-    "*.so",
-    "*.o",
-    "*.a",
-    "*.dll",
-    "*.exe",
-    "node_modules",
-    "vendor",
-    "build",
-    "dist",
-    "target",
-    "*.egg-info",
-    ".venv",
-    "venv",
-    "env",
-    ".env",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    "*.lock",
-    "package-lock.json",
-    "yarn.lock",
-    "poetry.lock",
-    "Pipfile.lock",
-    "*.swp",
-    "*.swo",
-]
-
-# --- Functions ---
+# Flag to ensure default config creation happens only once per run if needed
+_default_config_created = False
 
 
-def load_config(config_path: Path) -> Dict[str, List[str]]:
+def load_config_file(path: Path) -> Optional[Dict[str, Any]]:
     """Loads configuration from a JSON file."""
-    config: Dict[str, List[str]] = {"exclude": [], "whitelist": []}
-    if config_path.is_file():
+    if path.is_file():
         try:
-            with config_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                loaded_exclude = data.get("exclude")
-                loaded_whitelist = data.get("whitelist")
-                if isinstance(loaded_exclude, list):
-                    config["exclude"] = [
-                        str(p) for p in loaded_exclude if isinstance(p, str)
-                    ]
-                if isinstance(loaded_whitelist, list):
-                    config["whitelist"] = [
-                        str(p) for p in loaded_whitelist if isinstance(p, str)
-                    ]
-                logger.info(f"Loaded configuration from {config_path}")
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
         except json.JSONDecodeError:
-            logger.warning(
-                f"Could not decode JSON from {config_path}. Using defaults/CLI args."
-            )
-        except Exception as e:
-            logger.warning(
-                f"Error reading config file {config_path}: {e}. "
-                "Using defaults/CLI args."
-            )
-    else:
-        logger.debug(f"No config file found at {config_path}.")
+            logger.warning(f"Could not decode JSON from config file: {path}")
+        except OSError as e:
+            logger.warning(f"Could not read config file: {path}. Error: {e}")
+    return None
+
+
+def merge_configs(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Merges two config dictionaries. Override takes precedence."""
+    merged = base.copy()
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], list) and isinstance(value, list):
+            # Combine lists for patterns? Or override? Let's override for simplicity.
+            # Ensure uniqueness if combining later.
+            merged[key] = value
+        else:
+            merged[key] = value
+    return merged
+
+
+def get_config() -> Dict[str, Any]:
+    """Loads configuration from home and project files, merging them."""
+    config = DEFAULT_CONFIG.copy()
+
+    home_config = load_config_file(HOME_CONFIG_PATH)
+    if home_config:
+        config = merge_configs(config, home_config)
+        logger.info(f"Loaded configuration from {HOME_CONFIG_PATH}")
+
+    project_config = load_config_file(PROJECT_CONFIG_PATH)
+    if project_config:
+        config = merge_configs(config, project_config)
+        logger.info(f"Loaded configuration from {PROJECT_CONFIG_PATH} (overrides home config)")
+
+    # Create default home config only if neither home nor project config existed
+    if not home_config and not project_config:
+        create_default_config_if_needed(HOME_CONFIG_PATH)
+
     return config
+
+
+def create_default_config_if_needed(path: Path) -> None:
+    """Creates a default config file at the specified path if it doesn't exist."""
+    global _default_config_created
+    if not path.exists() and not _default_config_created:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(DEFAULT_CONFIG, f, indent=2)
+            logger.info(f"Created default configuration file at: {path}")
+            _default_config_created = True  # Mark as created for this run
+        except OSError as e:
+            logger.warning(f"Could not create default config file at {path}. Error: {e}")

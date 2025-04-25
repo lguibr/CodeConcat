@@ -3,91 +3,72 @@
 import logging
 import sys
 from pathlib import Path
-from typing import List, Optional, TextIO, Tuple, Union
+from typing import List, Optional, TextIO
 
 logger = logging.getLogger(__name__)
 
 
-def _open_output_stream(output_path: Optional[Path]) -> Union[TextIO, None]:
-    """Opens the appropriate output stream (file or stdout)."""
-    if output_path:
-        try:
-            return open(output_path, "w", encoding="utf-8", errors="replace")
-        except OSError as e:
-            logger.error(f"Failed to open output file {output_path}: {e}")
-            return None
-    else:
-        # Ensure stdout uses replace for errors if possible
-        if hasattr(sys.stdout, "reconfigure"):
-            try:
-                sys.stdout.reconfigure(errors="replace")
-            except Exception:  # pragma: no cover
-                logger.debug("Could not reconfigure stdout error handling.")
-        return sys.stdout
-
-
-def _write_file_content(output_stream: TextIO, file_path: Path, src_path: Path) -> bool:
-    """
-    Reads a single file and writes its content to the stream.
-    Returns True on success.
-    """
-    try:
-        if not file_path.is_file():
-            logger.warning(f"File disappeared before reading: {file_path}")
-            return False
-
-        with file_path.open("r", encoding="utf-8", errors="replace") as infile:
-            content = infile.read()
-
-        relative_path = file_path.relative_to(src_path)
-        header_path = str(relative_path.as_posix())
-        output_stream.write(f"--- File: {header_path} ---\n")
-        output_stream.write(content)
-        if not content.endswith("\n"):
-            output_stream.write("\n")
-        output_stream.write("\n\n")
-        return True
-    except OSError as e:
-        logger.warning(
-            f"Skipping file due to OS error: {file_path.relative_to(src_path)} ({e})"
-        )
-        return False
-    except Exception as e:
-        logger.error(
-            f"Unexpected error processing file {file_path.relative_to(src_path)}: {e}"
-        )
-        return False
-
-
 def create_output(
-    files: List[Path], src_path: Path, output_path: Optional[Path]
-) -> Tuple[int, int]:
-    """
-    Writes the content of the collected files to the output destination.
-    """
-    output_stream = _open_output_stream(output_path)
-    if output_stream is None:  # Handle case where file couldn't be opened
-        return 0, len(files)
-
-    written_files = 0
-    skipped_files = 0
+    output_path_str: Optional[str],
+    src_path_str: str,
+    tree: List[str],
+    to_stdout: bool = False,
+) -> None:
+    """Writes the content of the files in the tree to the output, wrapping content."""
+    output_stream: Optional[TextIO] = None
+    src_path = Path(src_path_str).resolve()
 
     try:
-        for file_path in files:
-            if _write_file_content(output_stream, file_path, src_path):
-                written_files += 1
-            else:
-                skipped_files += 1
+        if to_stdout:
+            output_stream = sys.stdout
+        elif output_path_str:
+            output_path = Path(output_path_str)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_stream = open(output_path, "w", encoding="utf-8")
+        else:
+            logger.error("Output target not specified (file path or --stdout).")
+            return
+
+        if not tree:
+            return
+
+        for file_path_str in tree:
+            file_path = Path(file_path_str)
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="replace") as file:
+                    content = file.read()
+            except UnicodeDecodeError:
+                logger.warning(f"Skipping file {file_path_str} due to unhandled encoding issue.")
+                continue
+            except OSError as e:
+                logger.warning(f"Skipping file {file_path_str} due to read error: {e}")
+                continue
+            except Exception as e:
+                logger.warning(f"Skipping file {file_path_str} due to unexpected error: {e}")
+                continue
+
+            try:
+                relative_path = file_path.relative_to(src_path)
+            except ValueError:
+                relative_path = file_path
+
+            # --- Write Output with New Formatting ---
+            output_stream.write(f"File: {relative_path.as_posix()}\n")
+            output_stream.write('""""""\n')
+            output_stream.write(content)
+            # Ensure newline before closing marker
+            if not content.endswith("\n"):
+                output_stream.write("\n")
+            output_stream.write('""""""\n')
+            output_stream.write("\n\n")
+            # --- End of Formatting Change ---
+
+        logger.info(f"Successfully wrote {len(tree)} files to " f"{'stdout' if to_stdout else output_path_str}")
+
+    except OSError as e:
+        logger.error(f"Error writing to output {'stdout' if to_stdout else output_path_str}. " f"Error: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during output generation: {e}")
     finally:
-        # Close the file stream only if it's not stdout
-        if output_path and output_stream is not sys.stdout:
-            if not output_stream.closed:
-                output_stream.close()
-            logger.info(f"Concatenated {written_files} files into {output_path}.")
-        elif output_path is None:  # Log counts to stderr when using stdout
-            logger.info(f"Concatenated {written_files} files to stdout.")
-
-        if skipped_files > 0:
-            logger.warning(f"Skipped {skipped_files} files due to errors.")
-
-    return written_files, skipped_files
+        if not to_stdout and output_stream and not output_stream.closed:
+            output_stream.close()
