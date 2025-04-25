@@ -20,7 +20,8 @@ def parse_arguments() -> argparse.Namespace:
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "Concatenate files from a directory into a single output, " "respecting .gitignore and config files."
+            "Concatenate files from a directory into a single output, "
+            "respecting .gitignore and config files."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,  # Show defaults
     )
@@ -74,7 +75,9 @@ def main() -> None:
 
     # Determine final settings, command-line args override config file
     use_gitignore = (
-        not args.no_gitignore if args.no_gitignore else config.get("use_gitignore", DEFAULT_CONFIG["use_gitignore"])
+        not args.no_gitignore
+        if args.no_gitignore
+        else config.get("use_gitignore", DEFAULT_CONFIG["use_gitignore"])
     )
     # Combine patterns from config and args, ensuring args take precedence if provided
     config_exclude = config.get("exclude_patterns", DEFAULT_CONFIG["exclude_patterns"])

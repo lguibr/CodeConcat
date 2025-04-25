@@ -63,7 +63,9 @@ def create_output(
             output_stream.write("\n\n")
             # --- End of Formatting Change ---
 
-        logger.info(f"Successfully wrote {len(tree)} files to " f"{'stdout' if to_stdout else output_path_str}")
+        logger.info(
+            f"Successfully wrote {len(tree)} files to " f"{'stdout' if to_stdout else output_path_str}"
+        )
 
     except OSError as e:
         logger.error(f"Error writing to output {'stdout' if to_stdout else output_path_str}. " f"Error: {e}")

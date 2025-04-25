@@ -79,10 +79,23 @@ def test_exclude_flag(tmp_path: Path):
     """Test the --exclude command-line flag."""
     source_dir = tmp_path / "src"
     output_file = tmp_path / "output.txt"
-    create_test_files(source_dir, {"include.py": "include", "exclude.log": "exclude", "also_include.txt": "include 2"})
+    create_test_files(
+        source_dir,
+        {
+            "include.py": "include",
+            "exclude.log": "exclude",
+            "also_include.txt": "include 2",
+        },
+    )
 
     # Simulate command line: codeconcat ./src output.txt --exclude ".*\\.log$"
-    test_args = ["codeconcat", str(source_dir), str(output_file), "--exclude", r".*\.log$"]
+    test_args = [
+        "codeconcat",
+        str(source_dir),
+        str(output_file),
+        "--exclude",
+        r".*\.log$",
+    ]
     with patch.object(sys, "argv", test_args):
         main()
 
@@ -97,10 +110,23 @@ def test_whitelist_flag(tmp_path: Path):
     """Test the --whitelist command-line flag."""
     source_dir = tmp_path / "src"
     output_file = tmp_path / "output.txt"
-    create_test_files(source_dir, {"include.py": "include", "exclude.txt": "exclude", "also_include.py": "include 2"})
+    create_test_files(
+        source_dir,
+        {
+            "include.py": "include",
+            "exclude.txt": "exclude",
+            "also_include.py": "include 2",
+        },
+    )
 
     # Simulate command line: codeconcat ./src output.txt --whitelist "\.py$"
-    test_args = ["codeconcat", str(source_dir), str(output_file), "--whitelist", r"\.py$"]
+    test_args = [
+        "codeconcat",
+        str(source_dir),
+        str(output_file),
+        "--whitelist",
+        r"\.py$",
+    ]
     with patch.object(sys, "argv", test_args):
         main()
 
@@ -191,7 +217,11 @@ def test_config_file_loading_home_only(mock_load_config, tmp_path: Path):
     )
 
     # Define what load_config_file should return for home and project paths
-    home_config_content = {"use_gitignore": False, "exclude_patterns": [r"\.log$"], "whitelist_patterns": []}
+    home_config_content = {
+        "use_gitignore": False,
+        "exclude_patterns": [r"\.log$"],
+        "whitelist_patterns": [],
+    }
 
     def load_side_effect(path):
         if path == HOME_CONFIG_PATH:
@@ -265,7 +295,10 @@ def test_no_files_found(tmp_path: Path, caplog):
     output_file = tmp_path / "output.txt"
 
     test_args = ["codeconcat", str(source_dir), str(output_file)]
-    with patch.object(sys, "argv", test_args), caplog.at_level(logging.WARNING):  # Capture warnings
+    with (
+        patch.object(sys, "argv", test_args),
+        caplog.at_level(logging.WARNING),
+    ):  # Capture warnings
         main()
 
     assert not output_file.exists()  # Should not create empty file
