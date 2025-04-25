@@ -1,0 +1,86 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeconcat"
+version = "0.1.18" # Update this as you release new versions
+authors = [
+  { name="Luis Guilherme", email="lgpelin92@gmail.com" },
+]
+description = "A tool to concatenate folders into a single text file"
+readme = "README.md"
+requires-python = ">=3.6"
+license = { file="LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10", # Added based on Ruff target
+    "Programming Language :: Python :: 3.11", # Added based on pre-commit config
+    "Programming Language :: Python :: 3.12", # Add future versions as tested
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing",
+    "Topic :: Utilities",
+]
+keywords = ["concatenate", "code", "llm", "context", "cli", "tool"] # Optional: Add relevant keywords
+dependencies = [
+    # "requests", # Looks like requests might not be used anymore in main.py? Keep if needed elsewhere.
+    "python-magic",
+]
+
+[project.urls]
+Homepage = "https://github.com/lguibr/CodeConcat"
+"Bug Tracker" = "https://github.com/lguibr/CodeConcat/issues"
+"Source Code" = "https://github.com/lguibr/CodeConcat"
+# Documentation = "https://github.com/lguibr/CodeConcat/blob/main/README.md" # Covered by readme
+
+[project.scripts]
+codeconcat = "codeconcat.main:main"
+
+
+# --- Ruff Configuration ---
+[tool.ruff]
+# Match black's line length.
+line-length = 88
+# Assume Python 3.10+ features for linting/formatting rules
+target-version = "py310"
+
+[tool.ruff.lint]
+# Select the rule sets you want.
+# E = pycodestyle errors
+# W = pycodestyle warnings
+# F = pyflakes
+# I = isort (import sorting)
+# Add others as desired, e.g., "B" for flake8-bugbear, "C90" for McCabe complexity
+select = ["E", "W", "F", "I"]
+
+# Optionally ignore specific rules if needed
+# ignore = []
+
+# Ruff respects .gitignore by default. Add other exclusions if needed.
+# exclude = [".venv", ...]
+
+[tool.ruff.format]
+# Optional: Configuration for the formatter if defaults aren't sufficient.
+# Often, setting line-length above is enough as it aims for black compatibility.
+# quote-style = "double"
+# indent-style = "space"
+# skip-magic-trailing-comma = false
+# line-ending = "auto"
+
+# --- Mypy Configuration (Optional but Recommended) ---
+# You can also move mypy config here from setup.cfg or other files
+# [tool.mypy]
+# python_version = "3.10"
+# warn_return_any = true
+# warn_unused_configs = true
+# Add other mypy options as needed

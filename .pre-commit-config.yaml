@@ -1,6 +1,7 @@
+# .pre-commit-config.yaml
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0 # Updated rev, use latest stable
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
@@ -8,27 +9,23 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: debug-statements
       - id: fix-encoding-pragma
+        # Note: The warning about deprecated stages might still appear
+        # Run `pre-commit autoupdate` to potentially fix if desired.
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Find the latest tag on GitHub https://github.com/astral-sh/ruff-pre-commit/tags
+    rev: v0.5.5 # Use the latest stable tag
     hooks:
-      - id: isort
-        name: isort (python)
-        args: ["--settings-path", ".isort.cfg"]
+      # Run the linter (replaces flake8, isort)
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix] # Auto-fix issues and fail if fixes were made
+      # Run the formatter (replaces black)
+      - id: ruff-format
 
-  - repo: https://github.com/psf/black
-    rev: 24.2.0
-    hooks:
-      - id: black
-        language_version: python3.11
-
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-
+  # Keep mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
+    rev: v1.11.0 # Use the latest stable version compatible with your project
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
+        additional_dependencies: [types-setuptools]
+        # Add other specific types-* if mypy complains later
