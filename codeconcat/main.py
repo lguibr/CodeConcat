@@ -3,6 +3,7 @@ import argparse
 import logging
 import os
 import re
+import sys
 import shutil
 from typing import List
 
@@ -174,11 +175,13 @@ def generate_directory_tree(
 
 
 def create_output_file(
-    output_path: str,
+    output_path: str | None,
     src_path: str,
     tree: List[str],
+    to_stdout: bool = False,
 ) -> None:
-    with open(output_path, "w", encoding="utf-8") as output_file:
+    output_stream = sys.stdout if to_stdout else open(output_path, "w", encoding="utf-8")
+    try:
         for file_path in tree:
             try:
                 with open(file_path, "r", encoding="utf-8") as file:
@@ -188,15 +191,24 @@ def create_output_file(
                 continue
 
             relative_path = os.path.relpath(file_path, src_path)
-            output_file.write(f"File: {relative_path}\n")
-            output_file.write(content)
-            output_file.write("\n\n")
+            output_stream.write(f"File: {relative_path}\n")
+            output_stream.write(content)
+            output_stream.write("\n\n")
+    finally:
+        if not to_stdout and output_stream:
+            output_stream.close()
 
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Local Repository Processor")
-    parser.add_argument("repo_path", help="Path to the local repository")
-    parser.add_argument("output_path", help="Path to the output file")
+    # Changed output_path to be optional with nargs='?' and default=None
+    parser.add_argument("repo_path", help="Path to the source directory")
+    parser.add_argument(
+        "output_path",
+        nargs="?",
+        default=None,
+        help="Path to the output file. If omitted, output goes to stdout.",
+    )
     parser.add_argument(
         "--exclude",
         default="",
@@ -207,7 +219,6 @@ def parse_arguments() -> argparse.Namespace:
         default="",
         help="Include only files or directories matching the given pattern",
     )
-
     return parser.parse_args()
 
 
@@ -215,7 +226,10 @@ def main() -> None:
     args = parse_arguments()
 
     repo_path = args.repo_path
-    output_path = args.output_path
+
+    # Validate arguments
+    # Determine if output should go to stdout
+    to_stdout = args.output_path is None
     exclude_pattern = args.exclude
     whitelist_pattern = args.whitelist
 
@@ -225,7 +239,7 @@ def main() -> None:
         exclude_pattern,
         whitelist_pattern,
     )
-    create_output_file(output_path, repo_path, tree)
+    create_output_file(args.output_path, repo_path, tree, to_stdout)
 
 
 if __name__ == "__main__":

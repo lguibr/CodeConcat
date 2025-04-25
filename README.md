@@ -27,13 +27,14 @@ pip install codeconcat
 ### Basic Command Structure
 
 ```bash
-codeconcat <source_path> <destination_file> [--exclude <pattern>] [--whitelist <pattern>]
+codeconcat <source_path> [destination_file] [--stdout] [--exclude <pattern>] [--whitelist <pattern>]
 ```
 
 ### Parameters
 
 - `<source_path>`: Path to the directory or repository to process.
-- `<destination_file>`: Path where the concatenated output will be saved.
+- `[destination_file]`: (Optional) Path where the concatenated output will be saved. Required if `--stdout` is not used.
+- `--stdout`: (Optional) If specified, output the concatenated content directly to standard output instead of writing to a file. Cannot be used with `destination_file`.
 - `--exclude <pattern>`: (Optional) Exclude files matching this pattern.
 - `--whitelist <pattern>`: (Optional) Only include files matching this pattern.
 
@@ -43,6 +44,11 @@ codeconcat <source_path> <destination_file> [--exclude <pattern>] [--whitelist <
 
 ```bash
 codeconcat ./my-repo output.txt
+```
+
+**Output to Standard Output:**
+```bash
+codeconcat ./my-repo --stdout > output.txt
 ```
 
 **Using Exclude Patterns:**
