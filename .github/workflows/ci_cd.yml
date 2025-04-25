@@ -1,18 +1,23 @@
-name: CI
+# .github/workflows/ci.yml
+name: CI and Publish
 
+# Trigger on pushes/PRs to main AND pushes of tags starting with 'v'
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*' # Trigger on tags like v0.1.0, v1.2.3, etc.
   pull_request:
     branches: [ "main" ]
 
 jobs:
-  build: # You can rename this job if you like, e.g., 'test' or 'checks'
+  # Job 1: Run linters, type checks, and tests
+  test_and_lint: # Renamed for clarity
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # Keep running other matrix jobs even if one fails
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"] # Add/remove versions as needed
+        python-version: ["3.10", "3.11"] # Test on relevant Python versions
 
     steps:
     - name: Check out code
@@ -22,28 +27,58 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip' # Enable caching for pip dependencies to speed up runs
+        cache: 'pip'
 
-    - name: Install dependencies
+    - name: Install dependencies (including test extras)
       run: |
         python -m pip install --upgrade pip
-        # This command installs the 'codeconcat' package itself
-        # plus all packages listed under [project.optional-dependencies.test]
-        # in your pyproject.toml file (e.g., ruff, mypy, pytest).
-        pip install .[test]
+        pip install .[test] # Installs package + ruff, mypy, pytest etc.
 
     - name: Lint and Format Check with Ruff
       run: |
-        # Check if code is formatted according to Ruff rules (like black)
         ruff format --check .
-        # Check for code style issues, import errors, etc. (like flake8, isort)
         ruff check .
 
     - name: Analyse code with Mypy
       run: |
-        # Ensure mypy runs on your source code and test directories
-        mypy codeconcat tests # Adjust these paths if your structure differs
+        mypy codeconcat tests # Adjust paths if needed
 
-    - name: Run tests with Pytest
+    # Optional: Uncomment if you have pytest tests
+    # - name: Run tests with Pytest
+    #   run: |
+    #     pytest
+
+  # Job 2: Publish package to PyPI on tagged commits
+  publish:
+    # Only run this job if the trigger was a tag push starting with 'v'
+    if: startsWith(github.ref, 'refs/tags/v')
+    # Only run this job if the 'test_and_lint' job succeeded
+    needs: test_and_lint
+    runs-on: ubuntu-latest
+
+    # Grant permissions for GitHub's OIDC token to be used for PyPI Trusted Publishing
+    permissions:
+      id-token: write # Essential for Trusted Publishing
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Python for publishing
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # Use a specific Python version for building/publishing
+
+    - name: Install build dependencies
       run: |
-        pytest
+        python -m pip install --upgrade pip
+        pip install build twine # Tools needed to build and upload the package
+
+    - name: Build package
+      run: python -m build # Creates wheel and sdist in dist/ directory
+
+    - name: Publish package to PyPI
+      # Twine will automatically use the OIDC token provided by the runner environment
+      # when run in a job with 'id-token: write' permissions.
+      # Ensure you have configured Trusted Publishing on PyPI for this repo/workflow.
+      run: twine upload dist/*
