@@ -6,13 +6,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codeconcat"
-version = "2.2.0" # Increment version for new features/fixes
+version = "2.2.0" # Assuming this is your intended version
 authors = [
   { name="Luis Guilherme", email="lgpelin92@gmail.com" },
 ]
 description = "A tool to concatenate folders into a single text file, respecting .gitignore and using optional config."
 readme = "README.md"
-requires-python = ">=3.7" # pathspec might require newer python, check its docs if needed
+requires-python = ">=3.7"
 license = { file="LICENSE" }
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -33,7 +33,7 @@ classifiers = [
 keywords = ["concatenate", "code", "llm", "context", "cli", "tool", "gitignore", "config"]
 dependencies = [
     "python-magic",
-    "pathspec>=0.11", # Added for .gitignore parsing
+    "pathspec>=0.11",
 ]
 
 [project.urls]
@@ -45,18 +45,19 @@ Homepage = "https://github.com/lguibr/CodeConcat"
 codeconcat = "codeconcat.main:main"
 
 [project.optional-dependencies]
+# Dependencies needed for testing and development checks
 test = [
-    "ruff",
+    "ruff", # Include ruff itself if you want to ensure consistent version
     "mypy>=1.0",
     "types-setuptools",
-    "types-python-magic", # Add if available and needed for mypy
-    "pytest>=7.0",
-    # Add other test-specific dependencies here
+    # "types-python-magic", # <<< REMOVED THIS LINE
+    "pytest>=7.0", # Keep if you use pytest for tests
+    # Add other test-specific dependencies here (e.g., coverage)
 ]
 
 # --- Ruff Configuration ---
 [tool.ruff]
-line-length = 120
+line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
@@ -65,15 +66,8 @@ select = ["E", "W", "F", "I"]
 [tool.ruff.format]
 # Defaults are usually fine
 
-# --- Default Config Structure (for documentation/reference) ---
-# This section is just a comment showing what the JSON structure looks like
-# It's not read by the tool itself.
-# Example ~/.codeconcat_config.json or ./.codeconcat_config.json:
-# {
-#   "use_gitignore": true,
-#   "exclude_patterns": [
-#     ".*\\.log$",
-#     ".*\\.tmp$"
-#   ],
-#   "whitelist_patterns": []
-# }
+# --- Mypy Configuration (Optional but Recommended) ---
+# [tool.mypy]
+# python_version = "3.10"
+# warn_return_any = true
+# warn_unused_configs = true
