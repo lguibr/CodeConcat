@@ -4,7 +4,14 @@
 [![License](https://img.shields.io/pypi/l/codeconcat.svg)](https://github.com/lguibr/codeconcat/blob/main/LICENSE)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**CodeConcat** is a command-line tool to concatenate files within a directory into a single text file. It intelligently filters files based on common ignore patterns (like `.git`, `node_modules`), file extensions, and optional user-defined rules, making it ideal for preparing codebases for analysis or large language model (LLM) context stuffing.
+# CodeConcat
+
+<p align="center">
+  <img src="bitmap.png" alt="Logo" width="300"/>
+</p>
+
+
+command-line tool to concatenate files within a directory into a single text file. It intelligently filters files based on common ignore patterns (like `.git`, `node_modules`), file extensions, and optional user-defined rules, making it ideal for preparing codebases for analysis or large language model (LLM) context stuffing.
 
 ## Key Features
 
