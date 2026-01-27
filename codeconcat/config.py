@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 # codeconcat/config.py
+"""
+Configuration Management Module for CodeConcat.
+
+This module handles the loading, merging, and creation of configuration
+files for CodeConcat. It supports a hierarchy of configuration sources:
+1. Default Configuration (Built-in)
+2. Home Directory Configuration (`~/.codeconcat_config.json`)
+3. Project Directory Configuration (`./.codeconcat_config.json`)
+4. CLI Arguments (Overrides everything)
+
+The module also defines the extensive default exclusion patterns used
+to filter out non-essential files.
+"""
+
 import json
 import logging
 from pathlib import Path
@@ -102,7 +116,16 @@ _default_config_created = False
 
 
 def load_config_file(path: Path) -> Optional[Dict[str, Any]]:
-    """Loads configuration from a JSON file."""
+    """
+    Loads configuration from a JSON file.
+
+    Args:
+        path (Path): Aboslute path to the configuration file.
+
+    Returns:
+        Optional[Dict[str, Any]]: Configuration dictionary if successful, None otherwise.
+        Returns None if file does not exist or JSON is invalid.
+    """
     if path.is_file():
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -117,7 +140,16 @@ def load_config_file(path: Path) -> Optional[Dict[str, Any]]:
 def merge_configs(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """
     Merges two config dictionaries. Override takes precedence.
-    List values (like patterns) in override *replace* base lists.
+
+    List values (like patterns) in the override dictionary will *replace*
+    the lists in the base dictionary, rather than appending to them.
+
+    Args:
+        base (Dict[str, Any]): The base configuration dictionary.
+        override (Dict[str, Any]): The configuration dictionary to merge on top.
+
+    Returns:
+        Dict[str, Any]: A new merged configuration dictionary.
     """
     merged = base.copy()
     for key, value in override.items():
@@ -130,7 +162,14 @@ def merge_configs(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, A
 def get_config() -> Dict[str, Any]:
     """
     Loads configuration from default, home, and project files, merging them.
-    Precedence: Project > Home > Default.
+
+    Hierarchy (Highest precedence last):
+    1. Default Config (Memory)
+    2. Home Config (~/.codeconcat_config.json)
+    3. Project Config (./.codeconcat_config.json)
+
+    Returns:
+        Dict[str, Any]: The final consolidated configuration dictionary.
     """
     config = DEFAULT_CONFIG.copy()
     home_loaded = False
@@ -156,7 +195,14 @@ def get_config() -> Dict[str, Any]:
 
 
 def create_default_config_if_needed(path: Path) -> None:
-    """Creates a default config file at the specified path if it doesn't exist."""
+    """
+    Creates a default config file at the specified path if it doesn't exist.
+
+    This ensures the user has a starting point for customization.
+
+    Args:
+        path (Path): Path where the default config should be created.
+    """
     global _default_config_created
     # Check existence again, as another process might have created it
     if not path.exists() and not _default_config_created:

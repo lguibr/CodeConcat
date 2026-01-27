@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codeconcat"
-version = "2.2.2" # Assuming this is your intended version
+version = "3.0.0" # Major UI/UX Upgrade
 authors = [
     { name="Luis Guilherme", email="lgpelin92@gmail.com" },
 ]
@@ -34,6 +34,8 @@ keywords = ["concatenate", "code", "llm", "context", "cli", "tool", "gitignore",
 dependencies = [
     "python-magic",
     "pathspec>=0.11",
+    "rich>=13.0.0",
+    "questionary>=2.0.0",
 ]
 
 [project.urls]

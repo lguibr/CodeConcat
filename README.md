@@ -4,25 +4,28 @@
 [![License](https://img.shields.io/pypi/l/codeconcat.svg)](https://github.com/lguibr/codeconcat/blob/main/LICENSE)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-# CodeConcat
+# CodeConcat v3.0
 
 <p align="center">
   <img src="bitmap.png" alt="Logo" width="300"/>
 </p>
 
+**The State-of-the-Art tool for preparing codebases for LLM usage.**
 
-command-line tool to concatenate files within a directory into a single text file. It intelligently filters files based on common ignore patterns (like `.git`, `node_modules`), file extensions, and optional user-defined rules, making it ideal for preparing codebases for analysis or large language model (LLM) context stuffing.
+CodeConcat turns your messy project folders into a **single, clean, markdown-formatted file** optimized for Large Language Models (LLMs) like Claude, GPT-4, and Gemini. It handles parsing, ignoring, and formatting so you don't have to.
 
-## Key Features
+## 🚀 Key Features
 
--   **Smart Filtering**: Automatically excludes common unnecessary files/directories (e.g., `.git`, `__pycache__`, `node_modules`, hidden files) and prioritizes known text/code file extensions.
--   **Flexible Control**: Use `--exclude` and `--whitelist` with simple glob patterns (like `*.py`, `docs/*`, not complex regex) to fine-tune included/excluded files.
--   **Configuration File**: Define project-specific defaults in a `.codeconcat_config.json` file in your project root.
--   **Clear Output**: Prepends each file's content with its relative path (`--- File: path/to/file.py ---`).
--   **Standard Output**: Easily pipe the output to other commands or redirect to a file (`codeconcat . > output.txt`).
--   **Modern Tooling**: Built with modern Python practices, using `pyproject.toml`, `ruff` for linting/formatting, and `mypy` for type checking.
+-   **🧙‍♂️ Interactive Wizard**: New in v3.0! Just run `codeconcat` and let the step-by-step wizard guide you.
+-   **🌲 ASCII File Tree**: Every output starts with a beautiful ASCII representation of your directory structure to give the LLM context.
+-   **🧠 Smart Context**: Automatically respects `.gitignore`, skipping `node_modules`, `.git`, and binary files.
+-   **💎 Granular Control**:
+    -   **Force Include**: Bypass `.gitignore` for specific files (like `.env` or specific build artifacts) using the new "Force Include" logic.
+    -   **Whitelist/Exclude**: Powerful glob patterns for fine-tuning.
+-   **🛡️ Safe Fencing**: Intelligent code block detection prevents nested backticks from breaking your markdown structure.
+-   **✨ Beautiful UI**: Powered by `rich` and `questionary` for a modern, clean terminal experience.
 
-## Installation
+## 📦 Installation
 
 Ensure you have Python 3.8+ installed.
 
@@ -30,111 +33,83 @@ Ensure you have Python 3.8+ installed.
 pip install codeconcat
 ```
 
-**System Dependency:** `codeconcat` uses `python-magic` for advanced file type detection, which relies on the `libmagic` library. You might need to install it separately:
+## 🛠️ Usage
 
--   **Debian/Ubuntu:** `sudo apt-get update && sudo apt-get install -y libmagic1`
--   **macOS (Homebrew):** `brew install libmagic`
--   **Windows:** Installation can be more complex. Consider using WSL or consult `python-magic` documentation.
+### 1. Interactive Wizard (Recommended)
 
-If `libmagic` is not found, `codeconcat` will still work but rely solely on file extensions for filtering, which is often sufficient.
-
-## How to Use
-
-### Basic Command Structure
+Simply run the command without arguments to start the configuration wizard.
 
 ```bash
-codeconcat <source_path> [output_file] [-e PATTERN] [-w PATTERN] [-v]
+codeconcat
 ```
 
-### Parameters
+You will be asked:
+1.  Source directory?
+2.  Output filename?
+3.  Respect `.gitignore`?
+4.  **Force include** specific files? (Grab those `.env` files or `dist/` builds easily!)
+5.  Verification & Summary.
 
--   `<source_path>`: (Required) Path to the directory to process.
--   `[output_file]`: (Optional) Path to save the concatenated output. If omitted, output is sent to standard output (stdout).
--   `-e PATTERN`, `--exclude PATTERN`: (Optional) Add a glob pattern to exclude files/directories. Can be used multiple times (e.g., `-e '*.log' -e 'temp/'`). CLI excludes are added to defaults and config file excludes.
--   `-w PATTERN`, `--whitelist PATTERN`: (Optional) Add a glob pattern to *only* include matching files/directories (after excludes are processed). If omitted, common text/code files are included by default. If used, *only* files matching these patterns (and not excluded) will be included. Can be used multiple times (e.g., `-w '*.py' -w 'src/*'`). CLI whitelists override config file whitelists.
--   `-v`, `--verbose`: (Optional) Enable detailed logging output.
+### 2. Command Line Interface (CLI)
 
-### Examples
+For power users or scripts, use the widely compatible CLI.
 
-**Concatenate current directory to stdout:**
-
+**Concatenate current directory:**
 ```bash
 codeconcat .
 ```
 
-**Concatenate a specific repo to a file:**
-
+**Force Include specific ignored files (New in v3.0):**
+Grab your `.env.local` even though it's gitignored:
 ```bash
-codeconcat ./my-cool-project concatenated_code.txt
+codeconcat --force-include ".env.local"
 ```
 
-**Concatenate to a file, excluding log files and the `dist` directory:**
-
+**Exclude logs and include only Python files:**
 ```bash
-codeconcat ./my-cool-project output.txt -e "*.log" -e "dist/*"
+codeconcat . codebase.md -e "*.log" -w "*.py"
 ```
 
-**Concatenate only Python and Markdown files:**
+### Options
 
-```bash
-codeconcat ./my-cool-project output.txt -w "*.py" -w "*.md"
-```
+| Flag | Description |
+|------|-------------|
+| `-i`, `--interactive` | Force the interactive wizard mode. |
+| `--force-include` | **Additive**: Include these files even if they are in `.gitignore`. |
+| `-e`, `--exclude` | **subtractive**: Exclude files matching this glob pattern. |
+| `-w`, `--whitelist` | **Exclusive**: ONLY include files matching this glob pattern. |
+| `--no-gitignore` | Disable `.gitignore` processing entirely. |
+| `--stdout` | Output to console instead of a file. |
 
-**Pipe output to `less`:**
+## 📄 Output Format
 
-```bash
-codeconcat . | less
-```
+The output is a single Markdown file structured for maximum LLM comprehension:
 
-### Configuration File (`.codeconcat_config.json`)
+1.  **Header**: Project Name.
+2.  **File Tree**:
+    ```text
+    src/
+    ├── main.py
+    ├── utils.py
+    └── config.py
+    ```
+3.  **Content**:
+    ```markdown
+    ### File: `src/main.py`
 
-You can place a `.codeconcat_config.json` file in the root of your `<source_path>` directory to define default patterns.
+    ```python
+    print("Hello World")
+    ```
+    ```
 
-**Example `.codeconcat_config.json`:**
-
-```json
-{
-  "exclude": [
-    "*.tmp",
-    "**/test_data/*",
-    ".cache/"
-  ],
-  "whitelist": [
-    "src/**/*.py",
-    "config/*.yaml",
-    "*.md"
-  ]
-}
-```
-
-**Precedence Rules:**
-
-1.  **Default Excludes:** Applied first (e.g., `.git`, `node_modules`).
-2.  **Config File Excludes:** Added to the default excludes.
-3.  **CLI `--exclude`:** Added to the combined default and config excludes.
-4.  **Config File Whitelist:** If present, files must match these patterns *after* passing exclude checks.
-5.  **CLI `--whitelist`:** If present, *overrides* the config file whitelist. Files must match these patterns *after* passing exclude checks.
-6.  **Default Whitelist (Extensions):** If no CLI or config whitelist is active, common text/code file extensions are used as an implicit whitelist.
-7.  **MIME Type Check:** As a final check (if `libmagic` is available), files identified as likely binary are excluded.
-
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome!
 
-1.  **Set up:**
-    ```bash
-    git clone https://github.com/lguibr/codeconcat.git
-    cd codeconcat
-    python -m venv .venv
-    source .venv/bin/activate # or .venv\Scripts\activate on Windows
-    pip install -r requirements-dev.txt # Installs codeconcat in editable mode + dev tools
-    pre-commit install # Install pre-commit hooks
-    ```
-2.  Make your changes.
-3.  Run checks: `pre-commit run --all-files` (includes `ruff` format/lint, `mypy`)
-4.  (Optional but Recommended) Add tests using `pytest`.
-5.  Submit a Pull Request.
+1.  Clone repo: `git clone https://github.com/lguibr/codeconcat.git`
+2.  Install dev setup: `pip install -e .`
+3.  Run tests: `pytest`
 
 ## License
 
-CodeConcat is distributed under the MIT license. See the [LICENSE](LICENSE) file for more details.
+MIT License.

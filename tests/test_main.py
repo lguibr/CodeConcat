@@ -37,7 +37,7 @@ def test_basic_concatenation(tmp_path: Path):
             "file1.py": "print('hello')",
             "subdir/file2.txt": "world",
             ".hidden": "ignore me",  # Should be included by default (text file)
-            "file3.log": "a log file",  # Should be included by default (in LANGUAGE_EXTENSIONS)
+            "file3.info": "a info file",  # Should be included by default (text file)
             "node_modules/some_dep.js": "excluded",  # Should be excluded by default config
             "build/output.o": "excluded",  # Should be excluded by default config
         },
@@ -51,14 +51,14 @@ def test_basic_concatenation(tmp_path: Path):
     assert output_file.exists()
     content = output_file.read_text()
     print(f"\n--- Output for test_basic_concatenation ---\n{content}\n--------------------------------------")
-    assert "File: file1.py" in content
-    assert '""""""\nprint(\'hello\')\n""""""' in content
-    assert "File: subdir/file2.txt" in content
-    assert '""""""\nworld\n""""""' in content
-    assert "File: .hidden" in content
-    assert '""""""\nignore me\n""""""' in content
-    assert "File: file3.log" in content
-    assert '""""""\na log file\n""""""' in content
+    assert "### File: `file1.py`" in content
+    assert "print('hello')" in content
+    assert "### File: `subdir/file2.txt`" in content
+    assert "world" in content
+    assert "### File: `.hidden`" in content
+    assert "ignore me" in content
+    assert "### File: `file3.info`" in content
+    assert "a info file" in content
     # Check that default excludes worked
 
 
@@ -74,8 +74,8 @@ def test_stdout_output(tmp_path: Path, capsys):
 
     captured = capsys.readouterr()
     stdout_content = captured.out
-    assert "File: file1.py" in stdout_content
-    assert '""""""\ndata\n""""""' in stdout_content
+    assert "### File: `file1.py`" in stdout_content
+    assert "data" in stdout_content
 
 
 def test_exclude_flag(tmp_path: Path):
@@ -86,8 +86,8 @@ def test_exclude_flag(tmp_path: Path):
         source_dir,
         {
             "include.py": "include",
-            "exclude.log": "exclude",  # This specific log should be excluded by flag
-            "other.log": "include",  # This log should be included as default excludes are overridden
+            "exclude.custom": "exclude",  # This specific file should be excluded by flag
+            "other.custom": "include",  # This file should be included
             "node_modules/stuff.js": "include",  # This should be included as default excludes are overridden
         },
     )
@@ -99,7 +99,7 @@ def test_exclude_flag(tmp_path: Path):
         str(source_dir),
         str(output_file),
         "--exclude",
-        r"exclude\.log$",
+        r"exclude\.custom$",
     ]
     with patch.object(sys, "argv", test_args):
         main()
@@ -107,9 +107,11 @@ def test_exclude_flag(tmp_path: Path):
     assert output_file.exists()
     content = output_file.read_text()
     assert "include.py" in content
-    assert "other.log" in content
-    assert "node_modules/stuff.js" in content
-    assert "exclude.log" not in content  # Only this specific log is excluded
+    assert "other.custom" in content
+    assert (
+        "node_modules/stuff.js" not in content
+    )  # Default excludes (node_modules) are merged, so this remains excluded
+    assert "exclude.custom" not in content  # Only this specific file is excluded
 
 
 def test_whitelist_flag(tmp_path: Path):
@@ -245,8 +247,8 @@ def test_config_file_loading_home_only(mock_load_config, tmp_path: Path):
 
     assert output_file.exists()
     content = output_file.read_text()
-    assert "file.py" in content  # Should be included (use_gitignore=False, not excluded)
-    assert "file.log" not in content  # Excluded by loaded config
+    assert "### File: `file.py`" in content  # Should be included (use_gitignore=False, not excluded)
+    assert "### File: `file.log`" not in content  # Excluded by loaded config
 
 
 @patch("codeconcat.config.load_config_file")
@@ -279,8 +281,8 @@ def test_config_file_loading_project_overrides(mock_load_config, tmp_path: Path)
 
     assert output_file.exists()
     content = output_file.read_text()
-    assert "file.py" not in content  # Excluded by project config
-    assert "file.txt" in content
+    assert "### File: `file.py`" not in content  # Excluded by project config
+    assert "### File: `file.txt`" in content
 
 
 def test_no_files_found(tmp_path: Path, caplog):
@@ -289,8 +291,11 @@ def test_no_files_found(tmp_path: Path, caplog):
     source_dir.mkdir()  # Empty directory
     output_file = tmp_path / "output.txt"
     test_args = ["codeconcat", str(source_dir), str(output_file)]
+    import pytest
+
     with patch.object(sys, "argv", test_args), caplog.at_level(logging.WARNING):
-        main()
+        with pytest.raises(SystemExit):
+            main()
 
     assert not output_file.exists()
     assert "No files found matching the criteria" in caplog.text
@@ -308,7 +313,7 @@ def test_exclude_output_file_implicitly(tmp_path: Path):
 
     assert output_file.exists()
     content = output_file.read_text()
-    assert "File: file1.py" in content
+    assert "### File: `file1.py`" in content
     assert "print('hello')" in content
     assert "PRE_EXISTING_OUTPUT_CONTENT" not in content
-    assert f"File: {output_file.name}" not in content
+    assert f"### File: `{output_file.name}`" not in content

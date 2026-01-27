@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
-# File: codeconcat/file_utils.py
+# codeconcat/file_utils.py
+"""
+File System Utilities Module.
+
+This module is responsible for traversing directory structures, identifying files,
+and applying rigorous filtering logic based on user preferences, gitignore rules,
+and MIME type detection.
+
+It uses `pathspec` for gitignore pattern matching and `python-magic` for advanced
+content type detection to avoid processing binary files.
+"""
+
 import logging
 import os
 import re
@@ -10,10 +21,14 @@ import magic
 import pathspec  # For .gitignore parsing
 
 logger = logging.getLogger(__name__)
-# Keep these constants or move them to config if they should be configurable
+
+# --- Filter Constants ---
+# These constants define the default boundaries of what files are considered "safe"
+# to process if no specific whitelist is active.
+
 EXCLUDED_MIME_TYPES = ("application", "image", "audio", "video")
-# This list becomes less important if whitelist is used effectively, but good fallback
-# (Keep your existing LANGUAGE_EXTENSIONS list here)
+"""Tuple[str, ...]: Partial MIME types that should be excluded by default (binaries, media)."""
+
 LANGUAGE_EXTENSIONS = (
     ".py",
     ".js",
@@ -78,11 +93,23 @@ LANGUAGE_EXTENSIONS = (
     "LICENSE",
     # Add other common text/code file extensions
 )
+"""Tuple[str, ...]: Extensive list of file extensions known to contain text/code."""
 
 
-# Need to re-add the load_gitignore_patterns function definition
 def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
-    """Loads .gitignore patterns starting from a path and walking upwards."""
+    """
+    Loads .gitignore patterns recursively starting from a path and walking upwards.
+
+    It looks for `.gitignore` files in the `start_path` and its parents up to the
+    root, collecting all valid patterns.
+
+    Args:
+        start_path (Path): The starting directory path to search from.
+
+    Returns:
+        Optional[pathspec.PathSpec]: A compiled PathSpec object containing all
+        found patterns, or None if no patterns were found or an error occurred.
+    """
     patterns = []
     current_path = start_path.resolve()
 
@@ -98,9 +125,7 @@ def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
                     ]
                     if valid_patterns:
                         patterns.extend(valid_patterns)
-                        logger.debug(
-                            f"Loaded {len(valid_patterns)} patterns from {gitignore_file}"
-                        )  # Use debug
+                        logger.debug(f"Loaded {len(valid_patterns)} patterns from {gitignore_file}")
             except OSError as e:
                 logger.warning(f"Could not read {gitignore_file}. Error: {e}")
 
@@ -124,16 +149,37 @@ def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
 def generate_directory_tree(
     src_path_str: str,
     exclude_patterns: List[str],
-    whitelist_patterns: List[str],
+    whitelist_patterns: List[str],  # Exclusive Whitelist
+    force_patterns: List[str],  # Additive Force Include (Bypass Gitignore)
     use_gitignore: bool,
 ) -> List[str]:
     """
-    Generates a list of file paths to include, applying filters.
-    Order of operations:
-    1. Check explicit exclude patterns (using relative paths).
-    2. Check .gitignore patterns (if enabled, using relative paths).
-    3. Check whitelist patterns (if provided, using relative paths).
-    4. Check default MIME type / extension (if no whitelist).
+    Generates a flattened list of absolute file paths to include in the output.
+
+    This function implements the core filtering core logic of CodeConcat.
+    It traverses the directory tree and applies filters in a specific order of precedence.
+
+    Order of Precedence for Files:
+    1. **Exclusion (Regex)**: If a file matches `exclude_patterns`, it is skipped immediately.
+    2. **Whitelist (Exclusive)**: If `whitelist_patterns` are provided, ONLY files matching
+       them are considered. If a file doesn't match, it is skipped.
+    3. **Force Include (Additive)**: If a file matches `force_patterns`, it is included
+       IMMEDIATELY, bypassing `.gitignore` checks.
+    4. **Gitignore**: If `use_gitignore` is True, files matching `.gitignore` rules are skipped.
+    5. **Default Inference**: If no whitelist was provided, files are included if they:
+       - Are known text extensions (e.g. .py, .js)
+       - Have a text/code MIME type (detected via libmagic)
+       - Are NOT binary/media files.
+
+    Args:
+        src_path_str (str): Path to the source directory.
+        exclude_patterns (List[str]): List of regex patterns to exclude.
+        whitelist_patterns (List[str]): List of regex patterns for exclusive inclusion.
+        force_patterns (List[str]): List of regex patterns for additive inclusion (bypassing gitignore).
+        use_gitignore (bool): Whether to respect .gitignore files.
+
+    Returns:
+        List[str]: A sorted list of absolute file paths accepted for processing.
     """
     tree: List[str] = []
     src_path = Path(src_path_str).resolve()
@@ -142,6 +188,7 @@ def generate_directory_tree(
     # Compile regex patterns, skip empty strings
     compiled_exclude = [re.compile(p) for p in exclude_patterns if p]
     compiled_whitelist = [re.compile(p) for p in whitelist_patterns if p]
+    compiled_force = [re.compile(p) for p in force_patterns if p]
 
     logger.debug(f"Source Path Resolved: {src_path}")
     logger.debug(f"Compiled Excludes: {[p.pattern for p in compiled_exclude]}")
@@ -194,32 +241,38 @@ def generate_directory_tree(
                 logger.warning(f"Could not get relative path for file {file_path_obj}, skipping checks.")
                 continue
 
-            # 1. Check explicit exclude patterns against RELATIVE path string
+            # 1. Check Exclude Patterns (Regex)
             if compiled_exclude and any(p.search(relative_file_path_str) for p in compiled_exclude):
                 logger.debug(f"Excluding file by exclude pattern: {relative_file_path_str}")
                 continue
 
-            # 2. Check .gitignore patterns
+            # 2. Check Whitelist (Exclusive)
+            # If whitelist exists, ONLY matching files are kept.
+            if compiled_whitelist:
+                if any(p.search(relative_file_path_str) for p in compiled_whitelist):
+                    # Matched whitelist, include and continue
+                    tree.append(file_path_abs_str)
+                    logger.debug(f"Including whitelisted file: {relative_file_path_str}")
+                    continue
+                else:
+                    # Whitelist active but no match -> Skip
+                    logger.debug(f"Skipping file not in whitelist: {relative_file_path_str}")
+                    continue
+
+            # 3. Check Force Include (Additive) - Bypasses Gitignore
+            if compiled_force and any(p.search(relative_file_path_str) for p in compiled_force):
+                tree.append(file_path_abs_str)
+                logger.debug(f"Force including file (bypassing gitignore): {relative_file_path_str}")
+                continue
+
+            # 4. Check .gitignore patterns
             if use_gitignore and gitignore_spec and gitignore_spec.match_file(relative_file_path_str):
                 logger.debug(f"Excluding file by gitignore: {relative_file_path_str}")
                 continue
 
-            # 3. Check whitelist patterns against RELATIVE path string
-            is_whitelisted = False
-            if compiled_whitelist:
-                if any(p.search(relative_file_path_str) for p in compiled_whitelist):
-                    is_whitelisted = True
-                else:
-                    logger.debug(f"Skipping file not in whitelist: {relative_file_path_str}")
-                    continue
-
-            # If whitelisted, add and continue (don't check default rules)
-            if is_whitelisted:
-                tree.append(file_path_abs_str)  # Store absolute path for reading later
-                logger.debug(f"Including whitelisted file: {relative_file_path_str}")
-                continue
-
-            # 4. Default Inclusion (Only if NO whitelist was provided)
+            # 5. Default Inclusion (Only if NO whitelist was provided)
+            # Since we handled whitelist above, if we are here, there is NO whitelist.
+            # We just check MIME/Extension logic.
             if not compiled_whitelist:
                 try:
                     # Magic needs the absolute path
