@@ -12,6 +12,7 @@ This module acts as the entry point for the CodeConcat application. It is respon
 4.  **Logging**: Setting up rich-text logging for better developer experience.
 """
 
+import fnmatch
 import logging
 import sys
 from pathlib import Path
@@ -85,6 +86,22 @@ def determine_output_target(
         return None, True
 
 
+def convert_globs_to_regex(patterns: list[str]) -> list[str]:
+    """
+    Converts a list of glob patterns to regex patterns using fnmatch.
+    """
+    regex_patterns = []
+    for p in patterns:
+        try:
+            # fnmatch.translate converts a glob to a regex.
+            # It anchors the pattern to the end of the string (\Z).
+            regex_patterns.append(fnmatch.translate(p))
+        except Exception:
+            # Fallback: if translation fails, keep original (might already be regex?)
+            regex_patterns.append(p)
+    return regex_patterns
+
+
 def main() -> None:
     """
     Main execution entry point.
@@ -148,14 +165,19 @@ def main() -> None:
     # Merge lists unique
     base_excludes = base_config.get("exclude_patterns", [])
     override_excludes = config_overrides.get("exclude", []) or []
+    # Convert user provided globs to regex
+    override_excludes = convert_globs_to_regex(override_excludes)
     files_excludes = list(set(base_excludes + override_excludes))  # Unique
 
     base_whitelist = base_config.get("whitelist_patterns", [])
     override_whitelist = config_overrides.get("whitelist", []) or []
+    # Convert user provided globs to regex
+    override_whitelist = convert_globs_to_regex(override_whitelist)
     files_whitelist = list(set(base_whitelist + override_whitelist))  # Unique
 
     # Force patterns (Additive) - No config base yet, just overrides
     files_force = config_overrides.get("force_patterns", []) or []
+    files_force = convert_globs_to_regex(files_force)
 
     # --- Output Target Resolution ---
     # Apply Smart TTY Logic if not in Wizard mode (Wizard sets destination_file explicitly)

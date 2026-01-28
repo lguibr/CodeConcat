@@ -99,7 +99,7 @@ def test_exclude_flag(tmp_path: Path):
         str(source_dir),
         str(output_file),
         "--exclude",
-        r"exclude\.custom$",
+        "exclude.custom",
     ]
     with patch.object(sys, "argv", test_args):
         main()
@@ -135,7 +135,7 @@ def test_whitelist_flag(tmp_path: Path):
         str(source_dir),
         str(output_file),
         "--whitelist",
-        r"\.py$",
+        "*.py",
     ]
     with patch.object(sys, "argv", test_args):
         main()
@@ -165,8 +165,6 @@ def test_no_gitignore_flag(tmp_path: Path):
         str(source_dir),
         str(output_file),
         "--no-gitignore",
-        "--exclude",
-        "",
     ]
     with patch.object(sys, "argv", test_args):
         main()
@@ -187,7 +185,7 @@ def test_gitignore_default(tmp_path: Path):
     # Simulate command line: codeconcat ./src output.txt --exclude ''
     # ADDED --exclude '' to disable default config excludes for this test
     # This isolates the effect of ONLY the .gitignore file
-    test_args = ["codeconcat", str(source_dir), str(output_file), "--exclude", ""]
+    test_args = ["codeconcat", str(source_dir), str(output_file)]
     with patch.object(sys, "argv", test_args):
         main()
 
@@ -317,3 +315,22 @@ def test_exclude_output_file_implicitly(tmp_path: Path):
     assert "print('hello')" in content
     assert "PRE_EXISTING_OUTPUT_CONTENT" not in content
     assert f"### File: `{output_file.name}`" not in content
+
+
+def test_glob_exclusion_translation(tmp_path: Path):
+    """Test that glob patterns (e.g. *.lock) are correctly translated and do not crash."""
+    source_dir = tmp_path / "src"
+    output_file = tmp_path / "output.txt"
+    create_test_files(
+        source_dir, {"keep.py": "keep", "ignore.lock": "ignore", "nested/ignore.lock": "ignore"}
+    )
+
+    # Simulate --exclude "*.lock"
+    test_args = ["codeconcat", str(source_dir), str(output_file), "--exclude", "*.lock"]
+    with patch.object(sys, "argv", test_args):
+        main()
+
+    assert output_file.exists()
+    content = output_file.read_text()
+    assert "keep.py" in content
+    assert "ignore.lock" not in content
