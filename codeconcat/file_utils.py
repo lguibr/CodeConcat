@@ -183,6 +183,8 @@ def generate_directory_tree(
     """
     tree: List[str] = []
     src_path = Path(src_path_str).resolve()
+    # Resolve src_path to handle cases where src_path_str is a symlink itself
+    src_path_resolved = src_path.resolve()
     gitignore_spec = load_gitignore_patterns(src_path) if use_gitignore else None
 
     # Compile regex patterns, skip empty strings
@@ -207,9 +209,20 @@ def generate_directory_tree(
                 # Use relative path for pattern matching and gitignore
                 dir_path_rel = dir_path_obj.relative_to(src_path)
                 dir_path_rel_str = str(dir_path_rel)
+
+                # Security Fix: Verify the directory (especially if it's a symlink)
+                # resolves to a path within src_path.
+                try:
+                    dir_path_obj.resolve().relative_to(src_path_resolved)
+                except ValueError:
+                    logger.warning(
+                        f"Security Warning: Directory {dir_path_obj} resolves to a path "
+                        "outside the source directory, skipping."
+                    )
+                    continue
+
             except ValueError:
                 logger.warning(f"Could not get relative path for dir {dir_path_obj}, skipping checks.")
-                dirs.append(d)  # Keep dir if relative path fails? Or skip? Skipping is safer.
                 continue
 
             # Check compiled exclude patterns against RELATIVE path string
@@ -235,8 +248,21 @@ def generate_directory_tree(
                 # Use relative path for pattern matching and gitignore
                 relative_file_path = file_path_obj.relative_to(src_path)
                 relative_file_path_str = str(relative_file_path)
+
+                # Security Fix: Resolve symlinks and verify the path remains within src_path
+                # This prevents path traversal attacks via symlinks.
+                resolved_file_path = file_path_obj.resolve()
+                try:
+                    resolved_file_path.relative_to(src_path_resolved)
+                except ValueError:
+                    logger.warning(
+                        f"Security Warning: File {file_path_obj} resolves to a path outside "
+                        "the source directory, skipping."
+                    )
+                    continue
+
                 # Keep absolute path only needed for magic
-                file_path_abs_str = str(file_path_obj.resolve())
+                file_path_abs_str = str(resolved_file_path)
             except ValueError:
                 logger.warning(f"Could not get relative path for file {file_path_obj}, skipping checks.")
                 continue
