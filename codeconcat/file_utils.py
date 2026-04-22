@@ -213,7 +213,9 @@ def generate_directory_tree(
 
     logger.debug(f"Source Path Resolved: {src_path}")
     logger.debug(f"Compiled Exclude Pattern: {compiled_exclude.pattern if compiled_exclude else 'None'}")
-    logger.debug(f"Compiled Whitelist Pattern: {compiled_whitelist.pattern if compiled_whitelist else 'None'}")
+    logger.debug(
+        f"Compiled Whitelist Pattern: {compiled_whitelist.pattern if compiled_whitelist else 'None'}"
+    )
     logger.debug(f"Compiled Force Pattern: {compiled_force.pattern if compiled_force else 'None'}")
     logger.debug(f"Gitignore Spec Loaded: {gitignore_spec is not None}")
 
