@@ -55,9 +55,6 @@ DEFAULT_EXCLUDE_PATTERNS = [
     r"npm-debug\.log.*",
     r"yarn-debug\.log.*",
     r"yarn-error\.log.*",
-    # Maybe keep lock files? Let's exclude build outputs for now.
-    # r"package-lock\.json$",
-    # r"yarn\.lock$",
     r"(?:^|/)dist/",  # Common JS build output dir
     r"(?:^|/)build/",  # Common JS build output dir
     r"(?:^|/)coverage/",  # JS Coverage reports
