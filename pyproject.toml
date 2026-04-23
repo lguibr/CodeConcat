@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codeconcat"
-version = "3.0.1" # Fix invalid regex crash
+version = "3.0.2" # Fix invalid regex crash
 authors = [
     { name="Luis Guilherme", email="lgpelin92@gmail.com" },
 ]
