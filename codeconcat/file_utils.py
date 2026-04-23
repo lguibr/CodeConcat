@@ -96,6 +96,27 @@ LANGUAGE_EXTENSIONS = (
 """Tuple[str, ...]: Extensive list of file extensions known to contain text/code."""
 
 
+def _compile_combined_regex(patterns: List[str]) -> Optional[re.Pattern]:
+    """
+    Combines multiple regex patterns into a single compiled regex object.
+
+    Args:
+        patterns (List[str]): List of regex patterns.
+
+    Returns:
+        Optional[re.Pattern]: A single compiled regex object, or None if no patterns.
+    """
+    valid_patterns = [p for p in patterns if p]
+    if not valid_patterns:
+        return None
+    try:
+        combined_pattern = "|".join(f"(?:{p})" for p in valid_patterns)
+        return re.compile(combined_pattern)
+    except re.error as e:
+        logger.error(f"Failed to compile combined regex: {e}")
+        return None
+
+
 def load_gitignore_patterns(start_path: Path) -> Optional[pathspec.PathSpec]:
     """
     Loads .gitignore patterns recursively starting from a path and walking upwards.
@@ -187,14 +208,17 @@ def generate_directory_tree(
     src_path_resolved = src_path.resolve()
     gitignore_spec = load_gitignore_patterns(src_path) if use_gitignore else None
 
-    # Compile regex patterns, skip empty strings
-    compiled_exclude = [re.compile(p) for p in exclude_patterns if p]
-    compiled_whitelist = [re.compile(p) for p in whitelist_patterns if p]
-    compiled_force = [re.compile(p) for p in force_patterns if p]
+    # Compile regex patterns into combined objects
+    compiled_exclude = _compile_combined_regex(exclude_patterns)
+    compiled_whitelist = _compile_combined_regex(whitelist_patterns)
+    compiled_force = _compile_combined_regex(force_patterns)
 
     logger.debug(f"Source Path Resolved: {src_path}")
-    logger.debug(f"Compiled Excludes: {[p.pattern for p in compiled_exclude]}")
-    logger.debug(f"Compiled Whitelists: {[p.pattern for p in compiled_whitelist]}")
+    logger.debug(f"Compiled Exclude Pattern: {compiled_exclude.pattern if compiled_exclude else 'None'}")
+    logger.debug(
+        f"Compiled Whitelist Pattern: {compiled_whitelist.pattern if compiled_whitelist else 'None'}"
+    )
+    logger.debug(f"Compiled Force Pattern: {compiled_force.pattern if compiled_force else 'None'}")
     logger.debug(f"Gitignore Spec Loaded: {gitignore_spec is not None}")
 
     for root, dirs, files in os.walk(str(src_path), topdown=True):  # Ensure os.walk gets a string
@@ -226,7 +250,7 @@ def generate_directory_tree(
                 continue
 
             # Check compiled exclude patterns against RELATIVE path string
-            if compiled_exclude and any(p.search(dir_path_rel_str) for p in compiled_exclude):
+            if compiled_exclude and compiled_exclude.search(dir_path_rel_str):
                 logger.debug(f"Excluding dir by exclude pattern: {dir_path_rel_str}")
                 continue
 
@@ -268,14 +292,14 @@ def generate_directory_tree(
                 continue
 
             # 1. Check Exclude Patterns (Regex)
-            if compiled_exclude and any(p.search(relative_file_path_str) for p in compiled_exclude):
+            if compiled_exclude and compiled_exclude.search(relative_file_path_str):
                 logger.debug(f"Excluding file by exclude pattern: {relative_file_path_str}")
                 continue
 
             # 2. Check Whitelist (Exclusive)
             # If whitelist exists, ONLY matching files are kept.
             if compiled_whitelist:
-                if any(p.search(relative_file_path_str) for p in compiled_whitelist):
+                if compiled_whitelist.search(relative_file_path_str):
                     # Matched whitelist, include and continue
                     tree.append(file_path_abs_str)
                     logger.debug(f"Including whitelisted file: {relative_file_path_str}")
@@ -286,7 +310,7 @@ def generate_directory_tree(
                     continue
 
             # 3. Check Force Include (Additive) - Bypasses Gitignore
-            if compiled_force and any(p.search(relative_file_path_str) for p in compiled_force):
+            if compiled_force and compiled_force.search(relative_file_path_str):
                 tree.append(file_path_abs_str)
                 logger.debug(f"Force including file (bypassing gitignore): {relative_file_path_str}")
                 continue
